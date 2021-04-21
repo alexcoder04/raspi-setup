@@ -10,7 +10,20 @@ sudo apt remove geany thonny lxtask
 echo "Upgrading packages..."
 sudo apt upgrade
 echo "Installing additional software..."
-sudo apt install i3 i3blocks rofi feh cmatrix arc-theme papirus-icon-theme fonts-font-awesome fish vim git
+sudo apt install \
+		i3 \
+		i3blocks \
+		rofi \
+		feh \
+		cmatrix \
+		arc-theme \
+		papirus-icon-theme \
+		fonts-font-awesome \
+		ranger \
+		w3m \
+		fish \
+		vim \
+		git
 
 echo "2. Making system configurations."
 
@@ -36,6 +49,14 @@ lxappearance
 echo "2.5. Configuring default desktop enviroment."
 echo "Writing i3 to ~/.xsession..."
 echo "exec /usr/bin/i3" > "$HOME/.xsession"
+
+echo "2.6. Configuring fstab"
+sudo cp /etc/fstab /etc/fstab.bak
+sudo echo "# ramdisk" >> /etc/fstab
+sudo echo "# uncomment to enable" >> /etc/fstab
+sudo echo "#tmpfs      /tmp         tmpfs    defaults,size=25%   0   0" >> /etc/fstab
+sudo echo "Editing fstab..."
+sudo vim /etc/fstab
 
 echo "3. Downloading config files."
 echo "Do you want to use local config files or pull those from an online repo?"
@@ -64,6 +85,9 @@ cp -i -r "$config_files_folder/fish" "$HOME/.config/"
 echo "Copying rofi config..."
 [ -e "$HOME/.config/rofi" ] && rm -rf "$HOME/.config/rofi"
 cp -i -r "$config_files_dir/rofi" "$HOME/.config/"
+echo "Copying vim config..."
+[ -e "$HOME/.vimrc" ] && rm "$HOME/.vimrc"
+cp -i -r "$config_files_dir/.vimrc" "$HOME"
 echo "Installing local scripts..."
 [ -e "$HOME/Programs" ] && rm -rf "$HOME/Programs"
 cp -i -r "$config_files_dir/Programs" "$HOME"
