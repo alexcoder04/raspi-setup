@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Welcome to this Raspi-installer!!!"
+echo "Welcome to the Raspberry Pi setup script!!!"
 
 echo "1. Performing package operations; this may take some time."
 echo "Updating package database..."
@@ -9,7 +9,7 @@ echo "Removing unnecessary software..."
 sudo apt remove geany thonny lxtask
 echo "Upgrading packages..."
 sudo apt upgrade
-echo "Installing addtional software..."
+echo "Installing additional software..."
 sudo apt install i3 i3blocks rofi feh cmatrix arc-theme papirus-icon-theme fonts-font-awesome fish vim git
 
 echo "2. Making system configurations."
@@ -35,7 +35,7 @@ lxappearance
 
 echo "2.5. Configuring default desktop enviroment."
 echo "Writing i3 to ~/.xsession..."
-echo "exec /usr/bin/i3" > $HOME/.xsession
+echo "exec /usr/bin/i3" > "$HOME/.xsession"
 
 echo "3. Downloading config files."
 echo "Do you want to use local config files or pull those from an online repo?"
@@ -70,4 +70,7 @@ cp -i -r "$config_files_dir/Programs" "$HOME"
 
 echo "4. Cleaning up."
 [ -e "$HOME/raspi-setup" ] && rm -rf "$HOME/raspi-setup"
+
+echo "5. Completion."
+echo "Reboot the Raspberry Pi to complete the setup!"
 
