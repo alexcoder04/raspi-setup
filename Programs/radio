@@ -1,0 +1,4 @@
+#!/bin/bash
+
+rvlc $(cat $HOME/Music/radio/$1)
+

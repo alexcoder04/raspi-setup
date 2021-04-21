@@ -1,0 +1,33 @@
+#!/bin/bash
+
+raspi_static_dir="/var/www/static"
+
+case $1 in
+	update)
+		cd $raspi_static_dir
+		case $2 in
+			magnan)
+				echo "Updating MagnanDrive static files..."
+				echo "Removing old backup files..."
+				[ -e magnan.bak ] && sudo rm -rf magnan.bak
+				echo "Creating a new backup..."
+				[ -e magnan ] && sudo mv magnan magnan.bak
+				echo "Cloning github repository..."
+				sudo git clone https://github.com/alexcoder04/MagnanStatic.git magnan
+				echo "Updated MagnanDrive static"
+				;;
+			*)
+				echo "Invalid option for update: $2"
+				;;
+		esac
+		;;
+	run)
+		cd $raspi_static_dir
+		echo "Starting server..."
+		python3 server.py
+		;;
+	*)
+		echo "Invalid command: $1"
+		;;
+esac
+

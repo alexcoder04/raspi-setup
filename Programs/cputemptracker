@@ -1,0 +1,6 @@
+#!/bin/bash
+
+while true; do
+	echo "$(date +%y.%m.%d_%H:%M) $(/home/pi/Programs/cputemp) $(/home/pi/Programs/cpucheck)" >> /home/pi/Data/cputemp.log
+	sleep 60
+done
