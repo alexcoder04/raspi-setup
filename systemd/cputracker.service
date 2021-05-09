@@ -1,0 +1,10 @@
+[Unit]
+Description=CPU temperature tracker
+
+[Service]
+User=+USER+
+WorkingDirectory=/home/+USER+
+ExecStart=/home/+USER+/Programs/cputemptracker
+
+[Install]
+WantedBy=multi-user.target
