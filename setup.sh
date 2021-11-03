@@ -1,27 +1,52 @@
 #!/bin/sh
+#        _                        _            ___  _  _   
+#   __ _| | _____  _____ ___   __| | ___ _ __ / _ \| || |  
+#  / _` | |/ _ \ \/ / __/ _ \ / _` |/ _ \ '__| | | | || |_ 
+# | (_| | |  __/>  < (_| (_) | (_| |  __/ |  | |_| |__   _|
+#  \__,_|_|\___/_/\_\___\___/ \__,_|\___|_|   \___/   |_|  
+# 
+# Copyright (c) 2021 alexcoder04 <https://github.com/alexcoder04>
+# 
+# setting up raspberry pi (on RaspberryPi OS)
+# requires: git
+#                                                          
 
-packages_to_remove="geany thonny lxtask"
-dialog_input_file="/tmp/raspisetup-inputfile"
+PACKAGES_TO_REMOVE="geany thonny lxtask"
+PACKAGES_REQUIRED="git"
+PACKAGES_TO_INSTALL="
+i3 i3blocks rofi feh
+lxappearance arc-theme papirus-icon-theme fonts-font-awesome
+w3m
+cmatrix"
+DIALOG_INPUT_FILE="/tmp/raspisetup-inputfile"
 
-fatal_error(){
-    echo "$1"; exit 1
+die(){
+    echo "ERROR: $1"; exit 1
+}
+
+yesno_continue(){
+  printf "${1:-Do you want to continue [y/n]?}"
+  read answer
+  case "$answer" in
+    y|Y|yes|YES|Yes) return 0 ;;
+    *) return 1;;
+  esac
+}
+
+subscript_failed(){
+  echo "$1 did not exit with a success return code."
+  echo "Something may went wrong"
+  yesno_continue \
+    && echo "Continuing anyway" \
+    || die "component failed to run"
 }
 
 wait_to_continue(){
-    read -p "Press <Enter> to continue..."
+  printf "Press <Enter> to continue..."
+  read _
 }
 
-config_ramdisk(){
-	sudo cp /etc/fstab /etc/fstab.bak
-	line="tmpfs      /tmp         tmpfs    defaults,size=25%   0   0"
-	dialog \
-		--backtitle "Ramdisk config" \
-		--title "Configuring fstab and ramdisk" \
-		--inputbox "fstab configuration line for the ramdisk:" 10 80 "$line" \
-		2>"$dialog_input_file"
-	sudo echo "# ramdisk" >> /etc/fstab
-	sudo echo "$(cat $dialog_input_file)" >> /etc/fstab
-}
+# ------------------
 
 install_config(){
 	[ -e "$1" ] || return
@@ -35,81 +60,91 @@ install_config(){
 	fi
 	cp -rv "$1" "$2"
 }
+# ----------------
 
-dialog \
-	--backtitle "Introduction" \
-	--title "Welcome to the Raspberry Pi setup script!" \
-	--msgbox "What you need? An internet connection and some time :)" 10 60
-clear
+echo "0. Introduction"
+echo "Welcome to the Raspberry Pi setup script!"
+echo "What you need? An internet connection and some time :)"
 
-echo "1. Performing package operations; this may take some time."
-echo "1.1. Updating package database..."
-sudo apt update || fatal_error "Could not perform apt update!"
-echo "1.2. Installing script dependencies..."
-sudo apt install vim git dialog
-wait_to_continue
-dialog \
-	--backtitle "Packages config" \
-	--title "1.3. Removing unnecessary software" \
-	--inputbox "Following packages will be removed:" 10 80 "$packages_to_remove" \
-	2>"$dialog_input_file"
-clear
-sudo apt remove $(cat $dialog_input_file)
-echo "1.4. Upgrading packages..."
-sudo apt upgrade
-echo "1.5. Installing additional software..."
-sudo apt install \
-		i3 i3blocks rofi feh \
-		cmatrix \
-		arc-theme papirus-icon-theme fonts-font-awesome \
-		ranger w3m \
-		fish
 wait_to_continue
 
-echo "2. Making system configurations."
-echo "2.1. Forcing password confirmation by sudo..."
+echo "1. Package operations"
+echo "1.1. Removing unnecessary packages"
+echo "Following packages will be removed:"
+for p in $PACKAGES_TO_REMOVE; do
+  echo " - $p"
+done
+
+if yesno_continue; then
+  sudo apt remove $PACKAGES_TO_REMOVE || subscript_failed "apt remove"
+else
+  printf "Custom list of packages to remove (leave blank if none): "
+  read answer
+  [ -n "$answer" ] && sudo apt remove $answer || subscript_failed "apt remove"
+fi
+
+echo "1.2. Updating package database"
+sudo apt update || subscript_failed "apt update"
+
+echo "1.3. Installing setup dependencies"
+sudo apt install $PACKAGES_REQUIRED || subscript_failed "install required packages"
+
+echo "1.4. Installing software"
+for p in $PACKAGES_TO_INSTALL; do
+  sudo apt install "$p"
+done
+
+echo "2. System configuration"
+echo "2.1. Forcing password confirmation by sudo"
 [ -f /etc/sudoers.d/010_pi-nopasswd ] && sudo rm -v /etc/sudoers.d/010_pi-nopasswd
 
-dialog \
-	--backtitle "Login Shell" \
-	--title "2.2. Login shell"
-	--radiolist "Select your login shell:" 10 50 4\
-		1 /bin/bash off \
-		2 /usr/bin/fish on \
-		3 /bin/sh off \
-	2>"$dialog_input_file"
-case "$(cat $dialog_input_file)" in
-	1)
-		chsh -s /bin/bash
-		;;
-	2)
-		chsh -s /usr/bin/fish
-		;;
-	*)
-		chsh -s /bin/sh
-		;;
-esac
+echo "2.2. Configuration with raspi-config"
+cat <<EOF
+What you can do
+ - enable SSH
+ - enable picamera
+ - change login to CLI interface
+EOF
 
-dialog \
-	--backtitle "System configuration" \
-	--title "2.3. Configuring system with raspi-config" \
-	--msgbox "Things you can do:\n - enable SSH\ - enable picamera\ - change login to the command line mode" 10 60
+wait_to_continue
 sudo raspi-config
 
-clear
-echo "2.4. Configuring themes: running lxappearance..."
+echo "2.3. Configuring themes: running lxappearance..."
+echo "lxappearance is a graphical program which will open up now"
+echo "Just close it after you made the configurations and this script will go on"
 wait_to_continue
 lxappearance
 
-echo "2.5. Configuring i3 as default desktop enviroment..."
+echo "2.4. Configuring i3 as default desktop enviroment..."
 echo "Writing i3 to ~/.xsession..."
-echo -e "#!/bin/sh\nexec /usr/bin/i3" > "$HOME/.xsession"
+cat >"$HOME/.xsession" <<EOF
+#!/bin/sh
+exec /usr/bin/i3
+EOF
 
-dialog \
-	--backtitle "fstab and ramdisk" \
-	--title "2.6. Configuring fstab." \
-	--yesno "Use a ramdisk?" 10 40
-[ "$?" = "0" ] && config_ramdisk
+echo "2.5. Configuring fstab"
+if yesno_continue "Do you want to use a ramdisk for /tmp?"; then
+  echo "Creating fstab backup"
+  sudo cp -v /etc/fstab /etc/fstab.bak
+  line="tmpfs      /tmp         tmpfs    defaults,size=25%   0   0"
+  echo "Default configuration for the ramdisk:"
+  echo "$line"
+  if ! yesno_continue; then
+    echo "Enter custom ramdisk configuration line:"
+    read line
+  fi
+  cat <<EOF | sudo tee -a /etc/file.conf
+# ramdisk configured with raspi-setup
+$line
+EOF
+fi
+
+
+
+
+
+
+
 
 dialog \
 	--backtitle "Config files" \
@@ -159,20 +194,6 @@ install_config "$config_files_dir/.vimrc" "$HOME/.vimrc"
 echo "Installing local scripts..."
 install_config "$config_files_dir/Programs" "$HOME/Programs"
 
-echo "4. Setting up systemd daemons"
-dialog \
-	--backtitle "CPU temperature tracker" \
-	--title "4.1. Setting up CPU temperature tracker" \
-	--yesno "Setup CPU temperature tracker?" 10 40
-[ "$?" = "0" ] \
-	&& clear \
-	&& sudo cat "$config_files_dir/systemd/cputracker.service" | sed "s/+USER+/$USER/" > "/etc/systemd/system/cputracker.service" \
-	&& sudo systemctl enable cputracker.service \
-	&& wait_to_continue
-
-echo "5. Cleaning up."
-[ -e "$HOME/raspi-setup" ] && rm -rf "$HOME/raspi-setup"
-rm $dialog_input_file
 
 echo "6. Completion."
 echo "Reboot the Raspberry Pi to complete the setup!"
