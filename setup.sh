@@ -11,6 +11,7 @@
 # requires: git
 #                                                          
 
+_VERSION="0.0.1"
 PACKAGES_TO_REMOVE="geany thonny lxtask"
 PACKAGES_REQUIRED="git"
 PACKAGES_TO_INSTALL="
@@ -46,25 +47,39 @@ wait_to_continue(){
   read _
 }
 
-# ------------------
-
-install_config(){
-	[ -e "$1" ] || return
-	if [ -e "$2" ]; then
-		dialog \
-			--backtitle "File or folder exists" \
-			--title "$2 already exists" \
-			--yesno "Replace it?" 10 60
-		[ "$?" = "0" ] && rm -rfv "$2" || return
-		clear
-	fi
-	cp -rv "$1" "$2"
+setup_dotfiles(){
+  printf "Dotfiles folder (default: ~/Dotfiles): "
+  read answer
+  [ -n "$answer" ] \
+    && export DOTFILES_REPO="$answer" \
+    || export DOTFILES_REPO="$HOME/Dotfiles"
+  answer=
+  mkdir -vp "$DOTFILES_REPO"
+  printf "Dotfiles repository (default: https://github.com/alexcoder04/linux-dotfiles): "
+  read answer
+  [ -n "$answer" ] \
+    && dotfiles_url="$answer" \
+    || dotfiles_url="https://github.com/alexcoder04/linux-dotfiles"
+  answer=
+  git clone "$dotfiles_url" "$DOTFILES_REPO"
+  echo "Dotfiles were cloned to $DOTFILES_REPO"
+  echo "Please install them manually"
+  wait_to_continue
 }
-# ----------------
 
-echo "0. Introduction"
-echo "Welcome to the Raspberry Pi setup script!"
-echo "What you need? An internet connection and some time :)"
+cat <<EOF
+0. Introduction"
+Welcome to the Raspberry Pi setup script!
+What you need? An internet connection and some time :)
+---
+Info:
+date: $(date)
+linux version: $(uname -r)
+setup script version: $_VERSION
+---
+Warning: the setup script is a work in progress.
+Bugs and missing features are expected.
+EOF
 
 wait_to_continue
 
@@ -81,6 +96,7 @@ else
   printf "Custom list of packages to remove (leave blank if none): "
   read answer
   [ -n "$answer" ] && sudo apt remove $answer || subscript_failed "apt remove"
+  answer=
 fi
 
 echo "1.2. Updating package database"
@@ -137,64 +153,16 @@ if yesno_continue "Do you want to use a ramdisk for /tmp?"; then
 # ramdisk configured with raspi-setup
 $line
 EOF
+  line=
 fi
 
-
-
-
-
-
-
-
-dialog \
-	--backtitle "Config files" \
-	--title "3.1. Downloading config files" \
-	--yesno "Use local config files?" 10 40
-if [ "$?" = "0" ]; then
-	dialog \
-		--backtitle "Mount additional drives" \
-		--title "3.1.1. Mounting additional drives" \
-		--yesno "Do you want to mount additional drives?" 10 50
-	[ "$?" = "0" ] && clear && fish
-	dialog \
-		--backtitle "Config folder" \
-		--title "3.1.2. Selecting config folder" \
-		--inputbox "Enter the folder with your config files:" 10 50 "/mnt/config" \
-		2>"$dialog_input_file"
-	config_files_dir="$(cat $dialog_input_file)"
+echo "2.6. Configuring dotfiles system"
+if yesno_continue "Do you want to use alexcoder04's dotfiles system"; then
+  setup_dotfiles
 else
-	dialog \
-		--backtitle "Custom repository" \
-		--title "3.1.1. Select repository" \
-		--yesno "Use custom repository?" 10 40
-	if [ "$?" = "0" ]; then
-		dialog \
-			--backtitle "Repository link" \
-			--title "3.1.2. Selecting repository" \
-			--inputbox "Enter repository link:" 10 60 \
-			2>"$dialog_input_file"
-		repo_link="$(cat $dialog_input_file)"
-	else
-		repo_link="https://github.com/alexcoder04/raspi-config"
-	fi
-	clear
-	config_files_dir="$HOME/raspi-setup"
-	git clone "$repo_link" "$config_files_dir"
+  echo "Skipping dotfiles setup"
 fi
 
-echo "3.2. Copying config files..."
-echo "Copying i3 config..."
-install_config "$config_files_dir/i3wm" "$HOME/.config/i3"
-echo "Copying fish config..."
-install_config "$config_files_dir/fish" "$HOME/.config/fish"
-echo "Copying rofi config..."
-install_config "$config_files_dir/rofi" "$HOME/.config/rofi"
-echo "Copying vim config..."
-install_config "$config_files_dir/.vimrc" "$HOME/.vimrc"
-echo "Installing local scripts..."
-install_config "$config_files_dir/Programs" "$HOME/Programs"
-
-
-echo "6. Completion."
-echo "Reboot the Raspberry Pi to complete the setup!"
+echo "3. Completion."
+echo "Please reboot the Raspberry Pi to complete the setup!"
 
