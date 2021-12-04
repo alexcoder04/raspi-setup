@@ -11,14 +11,14 @@
 # requires: git
 #                                                          
 
-_VERSION="0.0.1"
+_VERSION="0.0.2"
 PACKAGES_TO_REMOVE="geany thonny lxtask"
 PACKAGES_REQUIRED="git"
 PACKAGES_TO_INSTALL="
+w3m cmatrix"
+PACKAGES_GRAPHICAL="
 i3 i3blocks rofi feh
-lxappearance arc-theme papirus-icon-theme fonts-font-awesome
-w3m
-cmatrix"
+lxappearance arc-theme papirus-icon-theme fonts-font-awesome"
 DIALOG_INPUT_FILE="/tmp/raspisetup-inputfile"
 
 die(){
@@ -103,11 +103,13 @@ echo "1.2. Updating package database"
 sudo apt update || subscript_failed "apt update"
 
 echo "1.3. Installing setup dependencies"
-sudo apt install $PACKAGES_REQUIRED || subscript_failed "install required packages"
+for p in $PACKAGES_REQUIRED; do
+  sudo apt install "$p" || subscript_failed "install $p"
+done
 
 echo "1.4. Installing software"
 for p in $PACKAGES_TO_INSTALL; do
-  sudo apt install "$p"
+  sudo apt install "$p" || subscript_failed "install $p"
 done
 
 echo "2. System configuration"
@@ -125,18 +127,26 @@ EOF
 wait_to_continue
 sudo raspi-config
 
-echo "2.3. Configuring themes: running lxappearance..."
-echo "lxappearance is a graphical program which will open up now"
-echo "Just close it after you made the configurations and this script will go on"
-wait_to_continue
-lxappearance
+if yesno_continue "Configure GUI? "; then
+  echo "2.3.1. Installing GUI packages..."
+  for p in $PACKAGES_GRAPHICAL; do
+    sudo apt install "$p" || subscript_failed "install $p"
+  done
+  echo "2.3.2. Configuring themes: running lxappearance..."
+  echo "lxappearance is a graphical program which will open up now"
+  echo "Just close it after you made the configurations and this script will go on"
+  wait_to_continue
+  lxappearance
 
-echo "2.4. Configuring i3 as default desktop enviroment..."
-echo "Writing i3 to ~/.xsession..."
-cat >"$HOME/.xsession" <<EOF
-#!/bin/sh
-exec /usr/bin/i3
+  echo "2.4. Configuring i3 as default desktop enviroment..."
+  echo "Writing i3 to ~/.xsession..."
+  cat >"$HOME/.xsession" <<EOF
+  #!/bin/sh
+  exec /usr/bin/i3
 EOF
+else
+  echo "skipping 2.3. and 2.4. - GUI"
+fi
 
 echo "2.5. Configuring fstab"
 if yesno_continue "Do you want to use a ramdisk for /tmp?"; then
