@@ -11,22 +11,23 @@
 # requires: git
 #                                                          
 
-_VERSION="0.0.2"
+_VERSION="0.0.3"
 PACKAGES_TO_REMOVE="geany thonny lxtask"
-PACKAGES_REQUIRED="git"
+PACKAGES_REQUIRED="git make"
 PACKAGES_TO_INSTALL="
-w3m cmatrix"
+w3m cmatrix neovim"
 PACKAGES_GRAPHICAL="
 i3 i3blocks rofi feh
 lxappearance arc-theme papirus-icon-theme fonts-font-awesome"
 DIALOG_INPUT_FILE="/tmp/raspisetup-inputfile"
 
 die(){
-    echo "ERROR: $1"; exit 1
+  echo "---------------------------------------------------"
+  echo "ERROR: $1"; exit 1
 }
 
 yesno_continue(){
-  printf "${1:-Do you want to continue [y/n]?}"
+  printf "${1:-Do you want to continue [y/n]?} "
   read answer
   case "$answer" in
     y|Y|yes|YES|Yes) return 0 ;;
@@ -35,10 +36,11 @@ yesno_continue(){
 }
 
 subscript_failed(){
+  echo "---------------------------------------------------"
   echo "$1 did not exit with a success return code."
   echo "Something may went wrong"
   yesno_continue \
-    && echo "Continuing anyway" \
+    && echo "CONTINUING ANYWAY" \
     || die "component failed to run"
 }
 
@@ -63,7 +65,23 @@ setup_dotfiles(){
   answer=
   git clone "$dotfiles_url" "$DOTFILES_REPO"
   echo "Dotfiles were cloned to $DOTFILES_REPO"
-  echo "Please install them manually"
+
+  cd "$DOTFILES_REPO"
+  echo "Installing essential dotfiles" | shclrz -f cyan
+  echo "bash" | shclrz -F bold
+  ./install bash
+  echo "zsh" | shclrz -F bold
+  ./install zsh
+  echo "htop" | shclrz -F bold
+  ./install htop
+  echo "vim" | shclrz -F bold
+  ./install vim
+  echo "starship" | shclrz -F bold
+  ./install startship
+
+  echo "Essential dotfiles not beeing installed: lf" | shclrz -f yellow
+
+  echo "Please install other dotfiles manually" | shclrz -f yellow
   wait_to_continue
 }
 
@@ -106,17 +124,22 @@ echo "1.3. Installing setup dependencies"
 for p in $PACKAGES_REQUIRED; do
   sudo apt install "$p" || subscript_failed "install $p"
 done
+echo "1.3.1. Installing shclrz" | shclrz -f cyan
+git clone "https://github.com/alexcoder04/shclrz" && cd shclrz || subscript_failed "clone shclrz"
+sudo make install || subscript_failed "install shclrz"
 
-echo "1.4. Installing software"
+echo "1.4. Installing software" | shclrz -f cyan
 for p in $PACKAGES_TO_INSTALL; do
   sudo apt install "$p" || subscript_failed "install $p"
 done
+echo "1.4.1. Installing starship" | shclrz -f cyan
+sudo sh -c "$(curl -fsSL https://starship.rs/install.sh)" || subscript_failed "install starship"
 
-echo "2. System configuration"
-echo "2.1. Forcing password confirmation by sudo"
+echo "2. System configuration" | shclrz -f cyan
+echo "2.1. Forcing password confirmation by sudo" | shclrz -f cyan
 [ -f /etc/sudoers.d/010_pi-nopasswd ] && sudo rm -v /etc/sudoers.d/010_pi-nopasswd
 
-echo "2.2. Configuration with raspi-config"
+echo "2.2. Configuration with raspi-config" | shclrz -f cyan
 cat <<EOF
 What you can do
  - enable SSH
@@ -127,28 +150,28 @@ EOF
 wait_to_continue
 sudo raspi-config
 
-if yesno_continue "Configure GUI? "; then
-  echo "2.3.1. Installing GUI packages..."
+if yesno_continue "Configure GUI [y/n]?"; then
+  echo "2.3.1. Installing GUI packages..." | shclrz -f cyan
   for p in $PACKAGES_GRAPHICAL; do
     sudo apt install "$p" || subscript_failed "install $p"
   done
-  echo "2.3.2. Configuring themes: running lxappearance..."
+  echo "2.3.2. Configuring themes: running lxappearance..." | shclrz -f cyan
   echo "lxappearance is a graphical program which will open up now"
   echo "Just close it after you made the configurations and this script will go on"
   wait_to_continue
   lxappearance
 
-  echo "2.4. Configuring i3 as default desktop enviroment..."
+  echo "2.4. Configuring i3 as default desktop enviroment..." | shclrz -f cyan
   echo "Writing i3 to ~/.xsession..."
   cat >"$HOME/.xsession" <<EOF
   #!/bin/sh
   exec /usr/bin/i3
 EOF
 else
-  echo "skipping 2.3. and 2.4. - GUI"
+  echo "skipping 2.3. and 2.4. - GUI" | shclrz -f yellow
 fi
 
-echo "2.5. Configuring fstab"
+echo "2.5. Configuring fstab" | shclrz -f cyan
 if yesno_continue "Do you want to use a ramdisk for /tmp?"; then
   echo "Creating fstab backup"
   sudo cp -v /etc/fstab /etc/fstab.bak
@@ -166,13 +189,20 @@ EOF
   line=
 fi
 
-echo "2.6. Configuring dotfiles system"
-if yesno_continue "Do you want to use alexcoder04's dotfiles system"; then
+echo "2.6. Configuring dotfiles system" | shclrz -f cyan
+if yesno_continue "Do you want to use alexcoder04's dotfiles system [y/n]?"; then
   setup_dotfiles
 else
-  echo "Skipping dotfiles setup"
+  echo "Skipping dotfiles setup" | shclrz -f yellow
 fi
 
-echo "3. Completion."
-echo "Please reboot the Raspberry Pi to complete the setup!"
+echo "2.7. Configuring default shell" | shclrz -f cyan
+cat /etc/shells
+printf "Type in shell path: "
+read answer
+chsh -s "$answer" || subscript_failed "choose shell"
+answer=
+
+echo "3. Completion." | shclrz -f cyan
+echo "Please reboot your Raspberry Pi to complete the setup!" | shclrz -F bold -f yellow
 
