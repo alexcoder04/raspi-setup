@@ -11,11 +11,13 @@
 # requires: git
 #                                                          
 
+# TODO doas
+
 _VERSION="0.0.3"
 PACKAGES_TO_REMOVE="geany thonny lxtask"
 PACKAGES_REQUIRED="git make"
 PACKAGES_TO_INSTALL="
-w3m cmatrix neovim"
+w3m cmatrix neovim zsh"
 PACKAGES_GRAPHICAL="
 i3 i3blocks rofi feh
 lxappearance arc-theme papirus-icon-theme fonts-font-awesome"
@@ -57,11 +59,11 @@ setup_dotfiles(){
     || export DOTFILES_REPO="$HOME/Dotfiles"
   answer=
   mkdir -vp "$DOTFILES_REPO"
-  printf "Dotfiles repository (default: https://github.com/alexcoder04/linux-dotfiles): "
+  printf "Dotfiles repository (default: https://github.com/alexcoder04/dotfiles): "
   read answer
   [ -n "$answer" ] \
     && dotfiles_url="$answer" \
-    || dotfiles_url="https://github.com/alexcoder04/linux-dotfiles"
+    || dotfiles_url="https://github.com/alexcoder04/dotfiles"
   answer=
   git clone "$dotfiles_url" "$DOTFILES_REPO"
   echo "Dotfiles were cloned to $DOTFILES_REPO"
@@ -77,7 +79,7 @@ setup_dotfiles(){
   echo "vim" | shclrz -F bold
   ./install vim
   echo "starship" | shclrz -F bold
-  ./install startship
+  ./install starship
 
   echo "Essential dotfiles not beeing installed: lf" | shclrz -f yellow
 
@@ -113,7 +115,11 @@ if yesno_continue; then
 else
   printf "Custom list of packages to remove (leave blank if none): "
   read answer
-  [ -n "$answer" ] && sudo apt remove $answer || subscript_failed "apt remove"
+  if [ -n "$answer" ]; then
+    sudo apt remove $answer || subscript_failed "apt remove"
+  else
+    echo "Skipping package remove"
+  fi
   answer=
 fi
 
@@ -124,7 +130,7 @@ echo "1.3. Installing setup dependencies"
 for p in $PACKAGES_REQUIRED; do
   sudo apt install "$p" || subscript_failed "install $p"
 done
-echo "1.3.1. Installing shclrz" | shclrz -f cyan
+echo "1.3.1. Installing shclrz"
 git clone "https://github.com/alexcoder04/shclrz" && cd shclrz || subscript_failed "clone shclrz"
 sudo make install || subscript_failed "install shclrz"
 
