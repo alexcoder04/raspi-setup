@@ -13,7 +13,8 @@
 
 # TODO doas
 
-_VERSION="0.0.3"
+_VERSION="0.0.4"
+
 PACKAGES_TO_REMOVE="geany thonny lxtask"
 PACKAGES_REQUIRED="git make"
 PACKAGES_TO_INSTALL="
@@ -21,7 +22,8 @@ w3m cmatrix neovim zsh"
 PACKAGES_GRAPHICAL="
 i3 i3blocks rofi feh
 lxappearance arc-theme papirus-icon-theme fonts-font-awesome"
-DIALOG_INPUT_FILE="/tmp/raspisetup-inputfile"
+
+DEFAULT_DOTFILES_REPO="https://github.com/alexcoder04/dotfiles"
 
 die(){
   echo "---------------------------------------------------"
@@ -54,17 +56,13 @@ wait_to_continue(){
 setup_dotfiles(){
   printf "Dotfiles folder (default: ~/Dotfiles): "
   read answer
-  [ -n "$answer" ] \
-    && export DOTFILES_REPO="$answer" \
-    || export DOTFILES_REPO="$HOME/Dotfiles"
-  answer=
+  export DOTFILES_REPO="${answer:-$HOME/Dotfiles}"
+  unset answer
   mkdir -vp "$DOTFILES_REPO"
-  printf "Dotfiles repository (default: https://github.com/alexcoder04/dotfiles): "
+  printf "Dotfiles repository (default: $DEFAULT_DOTFILES_REPO): "
   read answer
-  [ -n "$answer" ] \
-    && dotfiles_url="$answer" \
-    || dotfiles_url="https://github.com/alexcoder04/dotfiles"
-  answer=
+  dotfiles_url="${answer:-$DEFAULT_DOTFILES_REPO}"
+  unset answer
   git clone "$dotfiles_url" "$DOTFILES_REPO"
   echo "Dotfiles were cloned to $DOTFILES_REPO"
 
@@ -76,10 +74,8 @@ setup_dotfiles(){
   ./install zsh
   echo "htop" | shclrz -F bold
   ./install htop
-  echo "vim" | shclrz -F bold
-  ./install vim
-  echo "starship" | shclrz -F bold
-  ./install starship
+  echo "nvim" | shclrz -F bold
+  ./install nvim
 
   echo "Essential dotfiles not beeing installed: lf" | shclrz -f yellow
 
@@ -120,7 +116,7 @@ else
   else
     echo "Skipping package remove"
   fi
-  answer=
+  unset answer
 fi
 
 echo "1.2. Updating package database"
@@ -181,18 +177,18 @@ echo "2.5. Configuring fstab" | shclrz -f cyan
 if yesno_continue "Do you want to use a ramdisk for /tmp?"; then
   echo "Creating fstab backup"
   sudo cp -v /etc/fstab /etc/fstab.bak
-  line="tmpfs      /tmp         tmpfs    defaults,size=25%   0   0"
+  line="tmpfs /tmp tmpfs defaults,size=25% 0 0"
   echo "Default configuration for the ramdisk:"
   echo "$line"
   if ! yesno_continue; then
     echo "Enter custom ramdisk configuration line:"
     read line
   fi
-  cat <<EOF | sudo tee -a /etc/file.conf
+  cat <<EOF | sudo tee -a /etc/fstab
 # ramdisk configured with raspi-setup
 $line
 EOF
-  line=
+  unset line
 fi
 
 echo "2.6. Configuring dotfiles system" | shclrz -f cyan
@@ -207,8 +203,11 @@ cat /etc/shells
 printf "Type in shell path: "
 read answer
 chsh -s "$answer" || subscript_failed "choose shell"
-answer=
+unset answer
 
 echo "3. Completion." | shclrz -f cyan
 echo "Please reboot your Raspberry Pi to complete the setup!" | shclrz -F bold -f yellow
+
+echo "Have fun tinkering with your Raspberry Pi!" | shclrz -F bold
+echo "Report any bugs in the setup script to https://github.com/alexcoder04/raspi-setup/issues"
 
